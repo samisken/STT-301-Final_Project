@@ -1,0 +1,337 @@
+---
+title: 'STT 301 Final Project: Flint Water Crisis Analysis Based on Lead Content'
+author: "Xinyi Wang, Zhishan Li, Alison Cronander, Samuel Isken"
+output:
+  html_document: default
+  pdf_document: default
+---
+
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+```{r Flint Water Crisis Data and Library Set-Up}
+#Imports data and loads nessecary libraries 
+
+#All nessecary libraries for reproducable code 
+library(ggplot2)
+library(dplyr)
+library(devtools)
+library(tidyr)
+
+#Initial data set from CSV file 
+Flint_Data <- read.csv(file="Flint-water-lead-dataset.csv", header=TRUE)
+```
+
+The data we are working with uses a few specific variable titles we wanted to ensure were properly explained. 
+
+First, Second and Third represent different times at which water was drawn from source
+  -First: Water is drawn promptly after switching on water
+  -Second: Water is drawn 45 seconds after switching on water
+  -Third: Water is drawn 120 seconds (2 minutes) after switching on water
+
+```{r Intial Analysis}
+#Runs basic analysis on data in its' intial form, specifically the three different categories of timed draws
+
+#Means (averages) of each draw
+mean_First_Draw <- mean(Flint_Data$First)
+mean_Second_Draw <- mean(Flint_Data$Second)
+mean_Third_Draw <- mean(Flint_Data$Third)
+
+#Median (middle value) of each draw
+median_First_Draw <- median(Flint_Data$First)
+median_Second_Draw <- median(Flint_Data$Second)
+median_Third_Draw <- median(Flint_Data$Third)
+
+#Minimum values of each draw
+min_First_Draw <- min(Flint_Data$First)
+min_Second_Draw <- min(Flint_Data$Second)
+min_Third_Draw <- min(Flint_Data$Third)
+
+#Maximum values of each draw 
+max_First_Draw <- max(Flint_Data$First)
+max_Second_Draw <- max(Flint_Data$Second)
+max_Third_Draw <- max(Flint_Data$Third)
+
+#DISPLAY? 
+
+```
+
+We stopped here with statistic calculations for this data set as splitting by zip code hear would use an inneficcient amount of code.  We will continue with more statistics when we reformat our data to be more workable.
+
+`r min_First_Draw` #can run variables outside of chunks like so 
+
+As you can see from the calculation above there exists a major outlier in the "Second" column of data stating a value of "1050".  After disscussion and research we decided to remove this column from the data.  It does not appear to be significant and we believe it is the result of human error.   
+
+```{r Removal of Outlier}
+#Script to remove outlier from data set 
+Flint_Data <-  Flint_Data[!(Flint_Data$Second=="1051"),]
+
+#Check to ensure removed
+new_max_Second_Draw <- max(Flint_Data$Second)
+```
+
+As you can see the new max of the "Second" category is 259.8, which is much more reasonable and similiar to the other data collected. 
+
+The goal of our research is to identify the answer to three main questions we have regarding the situation in Flint: 
+
+1. Are lead levels changing as a result of the seconds waited between turning on water and drawing it?
+2. Was this strategy effective from a public health perspective? 
+3. Does there exist a relationship between zip codes?
+
+We began our analysis by creating some visual plots in order to explore the data at a  high level.  These initial plots were based on our original data altered only to remove the single outlier.  
+
+We began our visual analysis by creating a correlation matrix to examine correlation between certain variables. 
+
+```{r Correlogram Analysis}
+#This line is included to ensure code is reproducable as this is a niche library many users will not have installed (Devtools is loaded above in order to gain nessecary functions)
+
+install_github("kassambara/ggcorrplot")
+library(ggcorrplot)
+
+# Correlation matrix
+corr <- round(cor(Flint_Data), 1)
+
+# Plot
+ggcorrplot(corr, hc.order = TRUE, 
+           type = "lower", 
+           lab = TRUE, 
+           lab_size = 3, 
+           method="circle", 
+           colors = c("tomato2", "white", "springgreen3"), 
+           title="Correlogram of Flint Lead Data (All Variables)", 
+           ggtheme=theme_bw)
+
+```
+
+Thw result of this shows us that there does exist correlation at a relatively high level (.6) between the variable relationships "First & Third" as well as "Second & Third".  We would expect these to not be equivalent if the time truly was reducing the lead content.  Though, correlation is not enough so while this was a good starting point clearly much more analysis is needed. 
+
+Next we decided to examine if there existed any relationship between lead content and location.  To do this we examined both the zip and ward variables (both are dependent variables of area).  Prior to this we created a quick chart to show the quantity of each "Zip Code" and "Ward Code".  Both the count information and analysis are provided in the following two code chunks. 
+
+```{r Zip Code Sample Quantity Visual}
+#Basic visual of zip code quantity in order to better understand data
+
+#Create table containing quantity of samples per zip code 
+Flint_Data_df_zip <- as.data.frame(table(Flint_Data$ZipCodes))
+colnames(Flint_Data_df_zip) <- c("class", "freq")
+
+#Display table created above
+Flint_Data_df_zip
+
+#Create pie chart for visually inclined readers to understand data scale and sample populations 
+pie_zip <- ggplot(Flint_Data_df_zip, aes(x = "", y=freq, fill = factor(class))) + 
+  geom_bar(width = 1, stat = "identity") +
+  theme(axis.line = element_blank(), 
+        plot.title = element_text(hjust=0.5)) + 
+  labs(fill="Zip Code to Color Identification", 
+       x=NULL, 
+       y=NULL, 
+       title="Pie Chart of Zip Code Quantity", 
+       caption="Source: Flint_Data")
+
+#Print pie chart and set coordinates  
+pie_zip + coord_polar(theta = "y", start=0)
+
+#Repeat exact same steps for "Ward Code" variable 
+
+#Basic visual of ward code quantity in order to better understand data
+
+#Create table containing quantity of samples per zip code 
+Flint_Data_df_ward <- as.data.frame(table(Flint_Data$Wards))
+colnames(Flint_Data_df_ward) <- c("class", "freq")
+
+#Display table created above
+Flint_Data_df_ward
+
+#Create pie chart for visually inclined readers to understand data scale and sample populations 
+pie_ward <- ggplot(Flint_Data_df_ward, aes(x = "", y=freq, fill = factor(class))) + 
+  geom_bar(width = 1, stat = "identity") +
+  theme(axis.line = element_blank(), 
+        plot.title = element_text(hjust=0.5)) + 
+  labs(fill="Ward Code to Color Identification", 
+       x=NULL, 
+       y=NULL, 
+       title="Pie Chart of Ward Code Quantity", 
+       caption="Source: Flint_Data")
+
+#Print pie chart and set coordinates  
+pie_ward + coord_polar(theta = "y", start=0)
+
+#CREATE BAR PLOT 
+```
+
+
+Now that we examined and visualized the quantity of samples per zip code we moved onto the analysis of Area and Lead content relationship. 
+
+```{r Area vs. Lead Content Analysis}
+#Script containing analysis of Area vs. Lead Content 
+
+#Script to create plot examining Zip Code and Lead content relationship
+zipcode_plot <- ggplot(data = Flint_Data, mapping = aes(x = SampleID, y = First)) +  geom_point(aes(color = factor(Flint_Data$ZipCode))) + ggtitle("(Lead Level Comparison Between Zip Codes (First) ") + labs(colour= "Zip Codes")
+
+#Display plot created above
+zipcode_plot
+
+#Script to create plot examining Zip Code and Lead content relationship
+ward_plot <- ggplot(data = Flint_Data, mapping = aes(x = SampleID, y = First)) +  geom_point(aes(color = factor(Flint_Data$Ward)))+ ggtitle("Lead Level Comparison Between Ward Codes (First) ") + labs(colour= "Ward Codes")
+
+#Display plot created above
+ward_plot
+```
+
+After examining the intial draw lead count against "Zip Code" and "Ward Code" we stoppoed.  It became very clear there was no clear relationship/correlation between area and lead content.  It became clear this issue does not discriminate by area and all of Flint was effected. 
+
+It became clear from here we had to re-think our methadology and manipulate our data.  We now knew that zip code / ward code / location was not going to play a large role in our study.  We needed to find a way to rework the data into a more useful format in order to examine the relationships between "First", "Second" and "Third" and look at how lead content was changing over time.  The column "t" represents time quantified and is dependedent on the column "Time".  "Time" can be considered and indicator variable while "t" is the time column we will be using for analysis. 
+
+```{r Manipulation / Re-Formatting of Flint Data}
+#Script to change data in order to examine time 
+
+#Find unique zip codes
+unique_zip_codes <- unique(Flint_Data$ZipCodes)
+
+#Display unique zip codes and quantity of zip codes in order to inform/remind reader of scale of data
+unique_zip_codes
+length(unique_zip_codes)
+
+#Tidy up data and create functioning time column to use in regression and further analysis
+Filtered_Flint <- data.frame(Flint_Data$ZipCodes,Flint_Data$First,Flint_Data$Second,Flint_Data$Third)
+Filtered_Flint <- gather(Filtered_Flint,key="Time",value="pb",2:4)
+Filtered_Flint$t <- 0
+Filtered_Flint$t[Filtered_Flint$Time == "Flint_Data.Second"] <- 45
+Filtered_Flint$t[Filtered_Flint$Time == "Flint_Data.Third"] <- 120
+
+#Display data manipulation created above
+Filtered_Flint
+
+```
+
+Now that we have manipulated our data to be in a more functional format we can begin our analysis of the relationship between time and lead  content.  Let us first pick up with our creation of summary statistics, looking this time instead at time rather than zip or ward code. 
+
+```{r Summarry Statistic Based on Time}
+#ADD MORE STATISTICS IF NEEDED 
+```
+
+Next, upon reccomendation per prior information provided we decided to use an exponential decay function to model our data using a regression.
+
+
+
+
+Initially we used the NLS (Non-linear Least Squares Method).  We used the standard form of the exponential decay function and estimated our parameters to be (a=1, b=-0.1).  After creating this model we then decided to take the natural log of the function defining the relationship between time and lead level and examine boxplots of each draw to ensure assu. 
+natural log of the relationship in order to check normality 
+boxplot(lm)
+
+```{r}
+#Regression Code Chunk
+
+#Examine Correlation between pb levels and time
+cor(Filtered_Flint$pb,Filtered_Flint$t)
+
+#Transformed Data Regression FOR ALL ZIPS
+all_zip_lm <- lm(formula = log(pb) ~ t, data = Filtered_Flint)
+
+#Non-Transformed Data Regression FOR ALL ZIPS
+all_zip_nls <- nls(pb~a*exp(-b*t), data = Filtered_Flint,start=c(a=2,b=-.01))
+```
+
+
+```{r natural log(Flint_Data) Boxplot}
+First_Boxplot <- boxplot(all_zip_lm)
+Second_Boxplot <- boxplot(log10(Flint_Data$Second))
+Third_Boxplot <- boxplot(log(Flint_Data$Third))
+
+
+
+```
+
+
+
+
+```{r}
+
+
+#Display regressions as example output, obviously are analysis is on a zip code level, but the scripts below show the regression formula works
+all_zip_lm
+all_zip_nls
+plot(all_zip_lm)
+summary(all_zip_nls)
+confint(all_zip_nls)
+resid(all_zip_nls)
+
+#Create 8 unique data frames for 8 unique zips and run 16 (1 lm and 1 nlm) unique regressionsa  
+Zip_48504_Filtered_Flint <- Filtered_Flint[Filtered_Flint$Flint_Data.ZipCodes =="48504",]
+Zip_48504_lm <- lm(formula = log(pb) ~ t, data = Zip_48504_Filtered_Flint)
+Zip_48504_nls <- nls(pb~a*exp(b*t), data = Zip_48504_Filtered_Flint,start=c(a=2,b=-.01))
+summary(Zip_48504_lm)
+summary(Zip_48504_nls)
+plot(Zip_48504_lm)
+
+
+Zip_48507_Filtered_Flint <- Filtered_Flint[Filtered_Flint$Flint_Data.ZipCodes =="48507",]
+Zip_48507_lm <- lm(formula = log(pb) ~ t, data = Zip_48507_Filtered_Flint)
+Zip_48507_nls <- nls(pb~a*exp(b*t), data = Zip_48507_Filtered_Flint,start=c(a=2,b=-.01))
+summary(Zip_48507_lm)
+summary(Zip_48507_nls)
+plot(Zip_48507_lm)
+
+
+Zip_48505_Filtered_Flint <- Filtered_Flint[Filtered_Flint$Flint_Data.ZipCodes =="48505",]
+Zip_48505_lm <- lm(formula = log(pb) ~ t, data = Zip_48505_Filtered_Flint)
+Zip_48505_nls <- nls(pb~a*exp(b*t), data = Zip_48505_Filtered_Flint,start=c(a=2,b=-.01))
+summary(Zip_48505_lm)
+summary(Zip_48505_nls)
+plot(Zip_48505_lm)
+
+
+Zip_48503_Filtered_Flint <- Filtered_Flint[Filtered_Flint$Flint_Data.ZipCodes =="48503",]
+Zip_48503_lm <- lm(formula = log(pb) ~ t, data = Zip_48503_Filtered_Flint)
+Zip_48503_nls <- nls(pb~a*exp(b*t), data = Zip_48503_Filtered_Flint,start=c(a=2,b=-.01))
+summary(Zip_48503_lm)
+summary(Zip_48503_nls)
+plot(Zip_48503_lm)
+
+
+Zip_48506_Filtered_Flint <- Filtered_Flint[Filtered_Flint$Flint_Data.ZipCodes =="48506",]
+Zip_48506_lm <- lm(formula = log(pb) ~ t, data = Zip_48506_Filtered_Flint)
+Zip_48506_nls <- nls(pb~a*exp(b*t), data = Zip_48506_Filtered_Flint,start=c(a=2,b=-.01))
+summary(Zip_48506_lm)
+summary(Zip_48506_nls)
+plot(Zip_48506_lm)
+
+
+Zip_48529_Filtered_Flint <- Filtered_Flint[Filtered_Flint$Flint_Data.ZipCodes =="48529",]
+Zip_48529_lm <- lm(formula = log(pb) ~ t, data = Zip_48529_Filtered_Flint)
+Zip_48529_nls <- nls(pb~a*exp(b*t), data = Zip_48529_Filtered_Flint,start=c(a=2,b=-.01))
+summary(Zip_48529_lm)
+summary(Zip_48529_nls)
+plot(Zip_48529_lm)
+
+
+Zip_48532_Filtered_Flint <- Filtered_Flint[Filtered_Flint$Flint_Data.ZipCodes =="48532",]
+Zip_48532_lm <- lm(formula = log(pb) ~ t, data = Zip_48532_Filtered_Flint)
+Zip_48532_nls <- nls(pb~a*exp(b*t), data = Zip_48532_Filtered_Flint,start=c(a=2,b=-.01))
+summary(Zip_48532_lm)
+summary(Zip_48532_nls)
+plot(Zip_48532_lm)
+
+
+Zip_48502_Filtered_Flint <- Filtered_Flint[Filtered_Flint$Flint_Data.ZipCodes =="48502",]
+Zip_48502_lm <- lm(formula = log(pb) ~ t, data = Zip_48502_Filtered_Flint)
+Zip_48502_nls <- nls(pb~a*exp(b*t), data = Zip_48502_Filtered_Flint,start=c(a=2,b=-.01))
+summary(Zip_48502_lm)
+summary(Zip_48502_nls)
+plot(Zip_48502_lm)
+
+
+```
+
+```{r}
+#Plots with Filtered_Flint Data Frame
+
+Filtered_Flint
+plot(Filtered_Flint$pb,Filtered_Flint$t)
+
+```
+
+
